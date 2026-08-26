@@ -1,0 +1,8 @@
+*.cap
+*.csv
+*.netxml
+/rockyou.txt
+/bin/
+**/__pycache__/
+/hash/
+/venv/
