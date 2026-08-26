@@ -40,7 +40,7 @@ running distro:
 Or manually, e.g. on Arch:
 
 ```bash
-sudo pacman -S intel-compute-runtime ocl-icd hashcat hcxtools aircrack-ng
+sudo pacman -S intel-compute-runtime ocl-icd hashcat hcxtools aircrack-ng john
 ```
 
 (Debian/Ubuntu use `apt`, Fedora `dnf`, openSUSE `zypper`, Alpine `apk` —
@@ -54,21 +54,40 @@ Run as root — capture needs monitor mode and raw frame injection. Working file
 including after a system-wide install.
 
 ```bash
-# 1. Capture the handshake/PMKID
-#    --interface wlan1mon  -> use that adapter directly
-#    --interface (no value) -> show the adapter picker and choose at runtime
-#    (no --interface)       -> same as the picker
-sudo 8cracker capture --interface wlan1mon
+# Capture only
+sudo 8cracker capture # --interface wlan1mon (optional)
 
-# 2. Convert the capture to hashcat -m 22000 format
-sudo 8cracker extract
+# Capture, then extract + crack in one command (preferred)
+# Auto-performs deauthentication attack to steal Hashed keys
+sudo 8cracker capture --crack --wordlist /path/to/wordlist.txt
+#   add --enable-gpu to crack on the GPU, plus --kill / --client <MAC> / --timeout <s>
 
-# 3. Crack with a wordlist (OpenCL / GPU-agnostic)
+# Crack an existing capture (no new capture)
 sudo 8cracker crack --wordlist /path/to/wordlist.txt
 
-# 4. Show cracked passwords
+# Show cracked passwords
 sudo 8cracker show
 ```
+
+> Note: `crack --capture` is still accepted as an alias, but the canonical
+> one-shot form is `capture --crack --wordlist ...`.
+
+### Cracking backend (John the Ripper vs hashcat)
+
+- **Default (no flag): John the Ripper, CPU-only.** This needs no OpenCL runtime
+  and works on any machine. `extract` already produces a John-compatible hash
+  (`captured_packet.john`) via `hcxpcapngtool --john`; `crack` then runs
+  `john --wordlist ...`.
+- **`--enable-gpu`: hashcat on the GPU.** hashcat is launched with `-D 2`
+  (OpenCL device type 2 = GPU) against the `-m 22000` hash. Requires a GPU
+  OpenCL runtime (`intel-compute-runtime`, `opencl-nvidia`, `rocm-opencl-runtime`,
+  etc.).
+
+After a run, `crack` automatically prints any recovered passwords (`john --show`
+for CPU mode, `hashcat --show` for GPU mode).
+
+> Note: after editing `8cracker.py`, reinstall it with `sudo make install` (the
+> `8cracker` on your PATH is a copy in `/usr/local/bin`).
 
 Capture files are written as `captured_packet-01.cap`; the hash becomes
 `~/.cache/8cracker/hash/captured_packet.hc22000`.
@@ -117,9 +136,7 @@ sudo 8cracker capture --kill --interface wlan1mon
 sudo 8cracker capture --kill --interface wlan1mon --client AA:BB:CC:DD:EE:FF
 ```
 
-Keep a device (phone/laptop) connected to the target and, ideally, toggle its
-WiFi off/on during the capture so it re-associates and produces a fresh
-handshake.
+It auto-listens to any device which already has the keys when reconnecting so as to capture the hashes. 
 
 ### Keep your built-in WiFi (wlan0) connected
 

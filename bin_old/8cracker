@@ -10,7 +10,6 @@ open-source tooling:
   * hcxpcapngtool - convert the capture to hashcat's -m 22000 format
   * hashcat       - crack the hash via its OpenCL backend (GPU-agnostic:
                     works on any OpenCL-capable device: AMD, NVIDIA, Intel)
-  * john          - CPU-only cracking (default, no OpenCL needed)
 
 The heavy lifting stays on those well-tested C tools; this script only drives
 the pipeline (subprocess) and adds distro-aware dependency handling so it runs
@@ -19,7 +18,7 @@ on Arch, Debian/Ubuntu, Fedora, openSUSE, Alpine, etc. without editing scripts.
 Subcommands:
   capture        Capture a handshake/PMKID to captured_packet-01.cap
   extract        Convert the capture to hash/captured_packet.hc22000
-  crack          Crack with a wordlist (John the Ripper CPU, or hashcat GPU)
+  crack          Crack hash/captured_packet.hc22000 with a wordlist (OpenCL)
   show           Show already-cracked passwords from the potfile
   install-deps   Print (or run) the distro-specific install command
 
@@ -488,25 +487,8 @@ def cmd_capture(args):
             ok(f"Capture saved to {CAPTURE_CAP}, but no complete handshake was")
             info("detected yet. Try again (a client must reconnect), or deauth a")
             info("specific client with --client <MAC> to get a cleaner handshake.")
-            if not args.crack:
-                return
     else:
         err("Capture file not found. A handshake may not have been captured.")
-        return
-
-    # --crack given: keep going through extract + crack in one shot.
-    if args.crack:
-        if not args.wordlist:
-            err("--crack requires --wordlist.")
-            sys.exit(1)
-        info(f"Cracking requested (wordlist {args.wordlist}): proceeding to extract and crack.")
-        cmd_extract(args)
-        crack_args = argparse.Namespace(
-            wordlist=args.wordlist, enable_gpu=args.enable_gpu,
-            capture=False, interface=args.interface, kill=args.kill,
-            client=args.client, timeout=args.timeout,
-        )
-        cmd_crack(crack_args)
 
 
 def cmd_extract(args):
@@ -627,17 +609,11 @@ def build_parser():
                    help="Client MAC to deauth (cleaner handshake); omit for broadcast deauth")
     c.add_argument("--timeout", type=int, default=MAX_CAPTURE_SECONDS,
                    help=f"Maximum capture time in seconds (default {MAX_CAPTURE_SECONDS})")
-    c.add_argument("--crack", action="store_true",
-                   help="After capturing, also extract and crack the handshake")
-    c.add_argument("--wordlist", default=None,
-                   help="With --crack: wordlist used to crack the captured handshake")
-    c.add_argument("--enable-gpu", action="store_true",
-                   help="With --crack: crack on the GPU (default is John the Ripper, CPU)")
     c.set_defaults(func=cmd_capture)
 
     sub.add_parser("extract", help="Convert capture to hash/captured_packet.hc22000").set_defaults(func=cmd_extract)
 
-    k = sub.add_parser("crack", help="Crack the hash with a wordlist")
+    k = sub.add_parser("crack", help="Crack the hash with a wordlist (OpenCL)")
     k.add_argument("--wordlist", default=DEFAULT_WORDLIST)
     k.add_argument("--capture", action="store_true",
                    help="Run the full chain: capture the handshake, extract the hash, "
