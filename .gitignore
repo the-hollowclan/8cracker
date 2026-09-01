@@ -2,7 +2,10 @@
 *.csv
 *.netxml
 /rockyou.txt
+/wordlist.txt
 /bin/
+/bin_old/
 **/__pycache__/
 /hash/
 /venv/
+/deprecated/
