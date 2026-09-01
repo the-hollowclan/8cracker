@@ -2,8 +2,8 @@
 
 A lightweight, terminal-based toolkit to **capture and crack WPA/WPA2 handshakes / PMKIDs**.
 8cracker drives the standard open-source tooling (`aircrack-ng`, `hcxtools`, `hashcat`,
-`john`) behind an interactive **TUI**, so the whole flow — pick adapter → scan → capture
-handshake → extract → crack — runs from a single `sudo ./8cracker`.
+`john`) behind an interactive **TUI**, so the whole flow — pick adapter -> scan -> capture
+handshake -> extract -> crack — runs from a single `sudo ./8cracker`.
 
 The cracking step is GPU-agnostic: choose **hashcat on the GPU** (any OpenCL device:
 AMD, NVIDIA, Intel) or **John the Ripper on the CPU** (no OpenCL needed).
